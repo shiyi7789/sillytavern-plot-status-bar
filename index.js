@@ -1440,7 +1440,6 @@ function buildUI() {
 
         <div class="psb-field psb-inline">
           <div class="menu_button" id="psb-run">立即生成当前楼层</div>
-          <div class="menu_button" id="psb-regen-all">重建全部状态栏</div>
           <div class="menu_button" id="psb-preview">预览样式</div>
         </div>
 
@@ -1627,19 +1626,6 @@ function buildUI() {
     host.appendChild(buildPanel(-1, DEMO_STATUS, { mode: settings.mode }));
   });
 
-  $('psb-regen-all').addEventListener('click', async () => {
-    const chat = getChat();
-    let n = 0;
-    for (let i = 0; i < chat.length; i++) {
-      if (chat[i].is_user) continue;
-      if (!chat[i].mes) continue;
-      await generate(i, { force: true });
-      n++;
-      if (n >= 40) break;
-    }
-    renderAll();
-    toast(`已重建 ${n} 条`);
-  });
 }
 
 /* ------------------------------------------------------------------ */
