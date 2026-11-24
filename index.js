@@ -577,11 +577,22 @@ function applyFloatPos(host) {
     host.style.right = 'auto';
     host.style.bottom = 'auto';
   } else {
+    // 用 top 反算：html 上的 -webkit-transform 会让 fixed 的定位基准变成 html，
+    // 手机端 html 高度为 0，用 bottom 会把面板算到视口外面。
     host.style.left = '';
-    host.style.top = '';
     host.style.right = '';
-    host.style.bottom = '';
+    host.style.bottom = 'auto';
+    const h = host.offsetHeight || 120;
+    host.style.top = `${Math.max(4, Math.round(window.innerHeight - floatBottomOffset() - h))}px`;
   }
+}
+
+/** 手机端：底部输入栏有多高，面板就垫多高，否则会躲在输入栏后面看不见 */
+function floatBottomOffset() {
+  if (window.innerWidth > 820) return 86;           // 桌面：老位置
+  const form = document.getElementById('form_sheld');
+  const h = form ? form.getBoundingClientRect().height : 0;
+  return Math.round(Math.max(90, h + 12));          // 至少 90px，避免贴死
 }
 
 function clampFloatPos(host, x, y) {
@@ -619,7 +630,8 @@ function bindDragOnce() {
 
   window.addEventListener('resize', () => {
     const host = document.getElementById('psb-float');
-    if (!host || !settings.floatPos) return;
+    if (!host) return;
+    if (!settings.floatPos) { renderFloat(); return; }
     const p = clampFloatPos(host, settings.floatPos.x, settings.floatPos.y);
     host.style.left = `${p.x}px`;
     host.style.top = `${p.y}px`;
@@ -706,7 +718,7 @@ function renderFloat(entry, animate = false) {
 
   // 收起状态：贴边圆形图标
   if (settings.floatCollapsed) {
-    const dock = settings.floatDock || { side: 'right', y: Math.round(window.innerHeight * 0.62) };
+    const dock = settings.floatDock || { side: 'right', y: Math.round(window.innerHeight * 0.52) };
     const y = Math.min(Math.max(dock.y, 60), window.innerHeight - 60);
     host.style.top = `${y}px`;
     host.style.bottom = 'auto';       // 否则 CSS 的 bottom 会把容器拉满整屏

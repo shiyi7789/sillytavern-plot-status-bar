@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>手机端状态栏检查</title>
+<style>
+  body { margin: 0; background: #111; display: flex; gap: 14px; padding: 12px; font-family: ui-monospace, Consolas, monospace; color: #ddd; }
+  .phone { width: 390px; height: 760px; border: 6px solid #333; border-radius: 20px; overflow: hidden; background: #000; flex: 0 0 auto; }
+  iframe { width: 100%; height: 100%; border: 0; }
+  #pad { flex: 1; font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow: auto; max-height: 760px; }
+  .ok { color: #6ee7a8; }
+  .bad { color: #ff8b8b; }
+  .k { color: #9db4ff; }
+</style>
+</head>
+<body>
+  <div class="phone"><iframe src="/" id="ph"></iframe></div>
+  <pre id="pad">booting…</pre>
+<script>
+const pad = document.getElementById('pad');
+const lines = [];
+function log(html) { lines.push(html); pad.innerHTML = lines.join('\n'); }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+const f = document.getElementById('ph');
+let n = 0;
+
+const timer = setInterval(() => {
+  n++;
+  const d = f.contentDocument;
+  if (!d) { if (n === 1) log(esc('iframe 尚未就绪')); return; }
+  const win = f.contentWindow;
+  const root = d.getElementById('psb-root');
+  const float = d.getElementById('psb-float');
+  const form = d.getElementById('form_sheld');
+  const st = !!win.SillyTavern;
+
+  log(`<span class="k">视口</span> ${win.innerWidth}×${win.innerHeight}  (t=${n}s)`);
+  log(`<span class="k">SillyTavern</span> ${st ? '<span class="ok">yes</span>' : '<span class="bad">no</span>'}`);
+  log(`<span class="k">扩展面板 #psb-root</span> ${root ? '<span class="ok">已加载</span>' : '<span class="bad">没有</span>'}`);
+
+  if (form) {
+    const r = form.getBoundingClientRect();
+    log(`<span class="k">输入栏</span> top=${Math.round(r.top)} h=${Math.round(r.height)}`);
+  } else {
+    log(`<span class="k">输入栏</span> <span class="bad">无 #form_sheld</span>`);
+  }
+
+  if (!float) {
+    log(`<span class="k">浮动面板 #psb-float</span> <span class="bad">不存在</span>`);
+  } else {
+    const cs = win.getComputedStyle(float);
+    const r = float.getBoundingClientRect();
+    const covered = d.elementFromPoint(Math.max(1, r.left + r.width / 2), Math.max(1, r.top + r.height / 2));
+    const isSelf = covered && (covered === float || float.contains(covered));
+    log(`<span class="k">浮动面板</span> display=${cs.display} bottom=${cs.bottom} z=${cs.zIndex}`);
+    log(`  rect: left=${Math.round(r.left)} top=${Math.round(r.top)} w=${Math.round(r.width)} h=${Math.round(r.height)}`);
+    log(`  文本: ${esc((float.innerText || '').slice(0, 40).replace(/\n/g, ' / '))}`);
+    log(`  中心点最上层元素: ${covered ? esc(covered.id || covered.className || covered.tagName) : 'null'} ${isSelf ? '<span class="ok">(面板自己)</span>' : '<span class="bad">(被遮住)</span>'}`);
+  }
+}, 1000);
+</script>
+</body>
+</html>
