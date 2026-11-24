@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>悬浮面板内容高度测试</title>
+<link rel="stylesheet" href="/scripts/extensions/third-party/plot-status-bar/style.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d12; font-family: system-ui, "Noto Sans SC", sans-serif; }
+  #r { position: fixed; left: 4px; top: 4px; z-index: 99999; font: 11px/1.45 ui-monospace, monospace; color: #8ef; background: #000a; padding: 6px 8px; border-radius: 6px; max-width: 380px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<pre id="r">measuring…</pre>
+
+<div id="psb-float">
+  <div class="psb-panel">
+    <div class="psb-head">
+      <button class="psb-btn psb-collapse" type="button">‹</button>
+      <span class="psb-title">👤 沈清秋</span>
+      <span class="psb-badge">🔌 额外 API</span>
+      <span class="psb-spacer"></span>
+      <button class="psb-btn" type="button">🔄</button>
+      <button class="psb-btn psb-danger" type="button" style="margin-left:8px">✕</button>
+    </div>
+    <div class="psb-chips">
+      <button class="psb-chip" type="button">📋 基础</button>
+      <button class="psb-chip" type="button">📊 属性</button>
+      <button class="psb-chip" type="button">💪 能力</button>
+      <button class="psb-chip" type="button">👗 外观</button>
+      <button class="psb-chip is-open" type="button">🔞 身体</button>
+      <button class="psb-chip" type="button">🎭 情境</button>
+    </div>
+    <div class="psb-panes">
+      <div class="psb-pane is-open">
+        <div class="psb-rows">
+          <div class="psb-row"><span class="psb-k">胸部</span><span class="psb-v">双乳饱满硕大达 B100，水滴形饱满如羊脂玉碗，肌肤白腻滑嫩；此刻未受束缚地由银红兜肚托着，随步履微微颤动；乳尖尚且残留着半个时辰前被不嗔吻吮吸留下的淡淡微红印记，体温温热</span></div>
+          <div class="psb-row"><span class="psb-k">腰腹背部</span><span class="psb-v">腰肢细至 W61，小腹平整紧致无半点赘肉；脊背沟壑深邃流畅；此刻小腹丹田深处正有玄牝烘炉提纯的先天灵液余韵缓缓流转，浸润着胞宫，表体散发着淡淡幽兰体香</span></div>
+          <div class="psb-row"><span class="psb-k">臀部形态</span><span class="psb-v">双臀浑圆挺翘达 H101，臀肉饱满紧实且极具弹性；此刻裹在月白百褶长裙下随着莲步轻轻微微摇曳，此前在禅榻上承受拍打的微红已完全消退，肌肤温腻温热</span></div>
+          <div class="psb-row"><span class="psb-k">腿部与足踝</span><span class="psb-v">双腿修长笔直、大腿丰润紧实，脚踝纤细如玉足弓优美；此刻踏着青绒绣鞋稳稳立于内室青砖之上，此前被高高折压在胸前的酸软感已彻底消散，肌骨轻盈有力</span></div>
+          <div class="psb-row"><span class="psb-k">手部</span><span class="psb-v">十指纤削如葱削，掌心柔软细腻，指尖圆润泛着淡粉；此刻正探手隔着墨绿长衫捂着怀中的《金章》拓本，指尖方才擦了净霜，留着微凉的丝绸触感</span></div>
+          <div class="psb-row"><span class="psb-k">阴部状态</span><span class="psb-v">丘阜丰满白晳，覆着一层稀疏柔顺的乌黑芳草，整体形态紧致娇嫩；此刻裙下未着亵裤，在莲步与玄牝汲元恢复力下已重归干爽洁净，仅残留着一丝极淡的幽兰体香与余温</span></div>
+          <div class="psb-row"><span class="psb-k">阴道口状态</span><span class="psb-v">粉嫩紧致如未经事的含苞花唇，晶莹湿润；虽经历半个时辰前接连三回与巨物凿击后，此刻在先天恢复力下已严丝合缝地闭合如处子，内壁温软微弹，毫无肿胀撕裂痕迹</span></div>
+          <div class="psb-row"><span class="psb-k">大小阴唇</span><span class="psb-v">大阴唇丰厚饱满、色泽白里透红，小阴唇薄嫩如粉蝶双翼，紧密贴合将花心严密护住；此刻已从先前充血肿胀的状态完全平复，滑腻干爽，随着走动与大阴唇内侧轻轻摩擦</span></div>
+          <div class="psb-row"><span class="psb-k">尿道</span><span class="psb-v">隐于阴蒂下方与阴道口上方之间，小巧隐蔽、色泽淡粉；此刻干净滑爽，随着下腹气血平复而毫无异样感，保持着正常的微缩状态</span></div>
+          <div class="psb-row"><span class="psb-k">阴蒂</span><span class="psb-v">珠粒小巧玲珑，半藏于娇嫩的包皮褶皱之中；先前高潮连池时的极度敏感与充血已随灵液流转平复下来，此刻安静蛰伏，偶被裙风拂过仍透着一丝细腻的余韵</span></div>
+          <div class="psb-row"><span class="psb-k">子宫状态</span><span class="psb-v">位于小腹盆腔深处，娇小柔韧；先前承接的纯阳精元已被玄牝烘炉彻底炼化为先天灵液，此刻宫腔内温热干爽、生机勃勃，并无半点精液残留或受孕迹象</span></div>
+          <div class="psb-row"><span class="psb-k">卵巢状态</span><span class="psb-v">分居子宫两侧，饱满而富有生机；在七窍贯通与先天灵液的持续滋养下，气血充盈、元阴醇厚，正源源不断地分泌滋养娇柔的芬芳华华</span></div>
+          <div class="psb-row"><span class="psb-k">肛门状态</span><span class="psb-v">臀缝深处紧致如常，色泽粉嫩；此刻保持着绝对的干爽与洁净，紧闭如常</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function measure() {
+  const host = document.getElementById('psb-float');
+  const panel = host.querySelector('.psb-panel');
+  const pane = host.querySelector('.psb-pane.is-open');
+  const chips = host.querySelector('.psb-chips');
+  const vh = window.innerHeight, vw = window.innerWidth;
+
+  // 模拟扩展的定位：贴着输入栏（假设输入栏 85px）
+  const bottomOffset = 85 + 12;
+  host.style.left = '8px';
+  host.style.right = '8px';
+  host.style.width = 'auto';
+  host.style.top = Math.max(4, Math.round(vh - bottomOffset - panel.offsetHeight)) + 'px';
+
+  const pr = panel.getBoundingClientRect();
+  const hr = host.getBoundingClientRect();
+  const out = [
+    `viewport ${vw}×${vh}`,
+    `panel h=${Math.round(pr.height)} top=${Math.round(pr.top)} bottom=${Math.round(pr.bottom)}`,
+    `  max-height 42vh = ${Math.round(vh * 0.42)}`,
+    `  overflow: ${getComputedStyle(panel).overflow} / flex: ${getComputedStyle(panel).display}`,
+    `chips h=${Math.round(chips.getBoundingClientRect().height)}`,
+    `pane  h=${Math.round(pane.getBoundingClientRect().height)}  scrollH=${pane.scrollHeight}  ${pane.scrollHeight > pane.clientHeight + 2 ? '✓ 可滚动' : '✗ 不需滚动'}`,
+    `panel 底部是否在视口内: ${pr.bottom <= vh ? '✓' : '✗ 超出 ' + Math.round(pr.bottom - vh) + 'px'}`,
+    `最后一行的可见性: ${(() => {
+      const rows = pane.querySelectorAll('.psb-row');
+      const last = rows[rows.length - 1].getBoundingClientRect();
+      return last.bottom <= pr.bottom ? '✓ 在面板内' : '✗ 被裁掉 ' + Math.round(last.bottom - pr.bottom) + 'px';
+    })()}`,
+  ];
+  document.getElementById('r').textContent = out.join('\n');
+}
+window.addEventListener('load', () => setTimeout(measure, 300));
+window.addEventListener('resize', measure);
+</script>
+</body>
+</html>

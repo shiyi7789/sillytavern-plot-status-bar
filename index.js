@@ -481,15 +481,36 @@ function panelHost(mesEl) {
   return mesEl.querySelector('.mes_text') || mesEl;
 }
 
-function renderOne(id) {
+/**
+ * 往楼层里画状态栏。
+ * force=false 时：已经有面板、或这条消息还没有状态栏，就什么都不做（可反复调用）。
+ */
+function renderOne(id, force = true) {
   if (settings.displayMode === 'float') return;   // 浮动模式下不再往楼层里塞
   const mesEl = document.querySelector(`#chat .mes[mesid="${id}"]`);
-  if (!mesEl) return;
-  removePanel(id);
+  if (!mesEl) return false;
   const data = getStatus(id);
-  if (!data) return;
+  if (!data) {
+    if (force) removePanel(id);
+    return false;
+  }
+  if (!force && mesEl.querySelector('.psb-panel')) return true;   // 已经在，不重画
+  removePanel(id);
   const host = panelHost(mesEl);
   host.appendChild(buildPanel(id, data, getStatusMeta(id)));
+  return true;
+}
+
+/** 楼层内模式的兜底补画：手机端消息渲染慢 / ST 重绘会冲掉我们的块 */
+function sweepInline() {
+  if (settings.displayMode !== 'inline') return;
+  if (!settings.enabled) return;
+  if (document.visibilityState !== 'visible') return;
+  const chat = getChat();
+  for (let i = 0; i < chat.length; i++) {
+    if (!getStatus(i)) continue;
+    renderOne(i, false);
+  }
 }
 
 function renderAll() {
@@ -559,6 +580,13 @@ let floatWatch = null;
  * 兜底守卫：角色卡开关时，不同版本 ST 发的事件不一样，
  * 这里每隔 1.5 秒比对一次「有没有角色卡」，一变就重绘，避免停在旧空态。
  */
+let inlineWatch = null;
+
+function startInlineWatch() {
+  if (inlineWatch) return;
+  inlineWatch = setInterval(sweepInline, 1500);
+}
+
 function startFloatWatch() {
   if (floatWatch) return;
   floatWatch = setInterval(() => {
@@ -1493,6 +1521,7 @@ function buildUI() {
     settings.displayMode = e.target.value === 'inline' ? 'inline' : 'float';
     saveSettings();
     document.querySelectorAll('#chat .psb-panel').forEach((n) => n.remove());
+    if (settings.displayMode === 'inline') startInlineWatch();
     renderAll();
     if (settings.displayMode === 'inline') {
       document.getElementById('psb-float')?.remove();
@@ -1628,7 +1657,10 @@ export async function activate() {
     bindEvents();
     applyInjection();
     startFloatWatch();
+    startInlineWatch();
     setTimeout(renderAll, 500);
+    setTimeout(sweepInline, 1500);
+    setTimeout(sweepInline, 3500);
     console.log(TAG, '已加载', {
       mode: settings.mode,
       apiMode: settings.apiMode,
