@@ -1146,6 +1146,20 @@ async function callMainFallback(prompt) {
   return String(text);
 }
 
+/** 模型安全策略拒答的特征（Gemini / 各类代理常见说法） */
+const REFUSAL_RE = /(i'?m (just )?a language model|can'?t (help|assist) with (that|this)|unable to (help|assist)|against my (guidelines|programming)|policy-guidelines|as an ai|抱歉[,，].{0,30}(无法|不能)|无法(协助|提供|满足)|不能(帮助|提供|满足)|违反.{0,12}(政策|准则|规定))/i;
+
+/**
+ * 判断返回的是不是「拒绝」而不是状态栏数据。
+ * 只有不像 JSON 时才判拒答，避免把正常数据里出现的「抱歉」误判。
+ */
+function looksLikeRefusal(text) {
+  const s = String(text || '').trim();
+  if (!s) return false;
+  if (!REFUSAL_RE.test(s)) return false;
+  return !/\{[\s\S]*\}/.test(s);
+}
+
 async function callExtra(prompt) {
   const attempts = [];
   const useProfile = settings.apiMode === 'profile' && !!settings.profileId;
@@ -1164,7 +1178,13 @@ async function callExtra(prompt) {
   let lastErr = null;
   for (const [label, fn] of attempts) {
     try {
-      return await fn();
+      const text = await fn();
+      if (looksLikeRefusal(text)) {
+        console.warn(TAG, `${label} 返回了拒答，换下一个通道：`, String(text).slice(0, 120));
+        lastErr = new Error(`${label} 被模型安全策略拒绝`);
+        continue;
+      }
+      return text;
     } catch (e) {
       lastErr = e;
       console.warn(TAG, `${label} 失败：${e?.message || e}`);
