@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>状态栏样式预览</title>
+<link rel="stylesheet" href="/scripts/extensions/third-party/plot-status-bar/style.css">
+<style>
+  body {
+    margin: 0; padding: 28px;
+    background: #0d0f14;
+    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #dfe5f0;
+  }
+  .stage { max-width: 460px; }
+  .stage.wide { max-width: 720px; margin-top: 28px; }
+  h2 { font-size: 13px; color: #6f7a90; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 12px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <h2>浮动面板 · 窄</h2>
+  <div class="psb-panel" id="p1">
+    <div class="psb-head">
+      <span class="psb-title">👤 十一冷语</span>
+      <span class="psb-badge">🔌 额外 API</span>
+      <span class="psb-spacer"></span>
+      <button class="psb-btn" type="button">⌄</button>
+      <button class="psb-btn" type="button">🔄</button>
+      <button class="psb-btn" type="button">✕</button>
+    </div>
+    <div class="psb-chips">
+      <button class="psb-chip is-open" type="button">📋 基础</button>
+      <button class="psb-chip" type="button">📊 属性</button>
+      <button class="psb-chip" type="button">💪 能力</button>
+      <button class="psb-chip" type="button">👗 外观</button>
+      <button class="psb-chip" type="button">🔞 身体</button>
+      <button class="psb-chip" type="button">🎭 情境</button>
+    </div>
+    <div class="psb-panes">
+      <div class="psb-pane is-open">
+        <div class="psb-rows">
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">📅</i>时间</span><span class="psb-v">天瑞九年六月初八 星期二 05:00</span></div>
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">📍</i>地点</span><span class="psb-v">神都洛阳・南市「落霞居」后院海棠小筑内室</span></div>
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">👾</i>种族</span><span class="psb-v">人类（【半步先天・六窍贯通】超凡武者，「玄牝汲元・莲纹覆巢」五脏混元之躯，距离九窍全开的真正【先天境】仅剩最后三处极窍）</span></div>
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">💀</i>年龄</span><span class="psb-v">21岁（五脏玄窍尽数洞开、五行混元自成循环后，肉身气血与驻颜生机已臻化境，通体肌肤在晨曦微光下莹白如仙玉，不染半点凡尘疲态）</span></div>
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">👄</i>三围</span><span class="psb-v">B100（I杯，贴身衣物已毁，此刻软缎长衫内未着寸缕，两团三尺围度的羊脂雪乳直接贴着微凉滑腻的内衬，随呼吸晃出惊心动魄的饱满弧度）/ W61（一尺八寸三，柔韧纤细的腰肢，气海窍与五脏玄窍贯通，五行相生混元一体）/ H101（丰满圆润的蜜桃雪臀包裹在百褶长裙下，裙底未穿亵裤）</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <h2>身体 · 高密度长文本</h2>
+  <div class="psb-panel">
+    <div class="psb-head">
+      <span class="psb-title">👤 十一冷语</span>
+      <span class="psb-spacer"></span>
+      <button class="psb-btn" type="button">⌄</button>
+    </div>
+    <div class="psb-chips">
+      <button class="psb-chip" type="button">📋 基础</button>
+      <button class="psb-chip is-open" type="button">🔞 身体</button>
+    </div>
+    <div class="psb-panes">
+      <div class="psb-pane is-open">
+        <div class="psb-rows">
+          <div class="psb-row"><span class="psb-k">胸部</span><span class="psb-v">胸围三尺（B100，I罩杯），因贴身衣物损毁而真空贴在软缎长衫内，两团硕大浑圆的羊脂雪乳失去承托，随着一呼一吸沉甸甸地微微晃荡，两颗浅粉红豆因直接摩擦绸缎而微微挺立</span></div>
+          <div class="psb-row"><span class="psb-k">腰腹背部</span><span class="psb-v">腰围一尺八寸三（W61），纤腰盈盈一握；体内气海窍与五脏玄窍全部贯通，形成生生不息的混元大循环；小腹正中偏下的半掌大粉金色重瓣莲纹已完美隐入肌肤之下</span></div>
+          <div class="psb-row"><span class="psb-k">腿部与足踝</span><span class="psb-v">丰腴修长的玉腿在裙摆下光裸交叠，方才施展轻功飞掠时被晨风吹拂得微凉滑腻</span></div>
+          <div class="psb-row psb-miss"><span class="psb-k">手部</span><span class="psb-v">未返回</span></div>
+          <div class="psb-row"><span class="psb-k">阴部状态</span><span class="psb-v">天生无毛的极品「白虎」，虽承受了整夜征伐，但在六窍贯通与玄牝汲元的恢复力下已彻底蒸干净化，重归干爽洁净</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stage wide">
+  <h2>桌面 · 宽</h2>
+  <div class="psb-panel">
+    <div class="psb-head">
+      <span class="psb-title">👤 十一冷语</span>
+      <span class="psb-badge">🧠 主 AI</span>
+      <span class="psb-spacer"></span>
+      <button class="psb-btn" type="button">⌄</button>
+    </div>
+    <div class="psb-chips">
+      <button class="psb-chip" type="button">📋 基础</button>
+      <button class="psb-chip is-open" type="button">👗 外观</button>
+      <button class="psb-chip" type="button">🎭 情境</button>
+    </div>
+    <div class="psb-panes">
+      <div class="psb-pane is-open">
+        <div class="psb-rows">
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">💃</i>整体印象与姿态</span><span class="psb-v">「彻夜榨干一品阳，五脏洞开混元成」——卯时初晨光里，她亭亭玉立地整理着衣襟；鹅蛋脸白腻得如同刚剥壳的龙眼、透着淡淡的粉润霞光；墨绿暗花交领软缎长衫下未着寸缕，三尺围度的雪乳在衣内毫无束缚地沉甸甸晃动，将胸前撑出惊心动魄的弧度</span></div>
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">👙</i>衣着</span><span class="psb-v">外衫：墨绿暗花交领软缎长衫（已用真气蒸干水汽，直接贴肉穿着）
+内衬：无（彻底真空）
+贴身衣物：无（原「金缕托月肚兜」已被扯断金丝并震碎为飞灰）
+下身：墨绿百褶长裙（裙腰丝绦系紧，裙底空空荡荡）
+袜子：素白冰丝罗袜
+鞋子：珍珠绣鞋（鞋面不染尘埃）
+配饰：碧玉簪 / 莹白珍珠耳坠
+内裤：无（原「素白丝绸亵裤」已被撕成两半）</span></div>
+          <div class="psb-row"><span class="psb-k"><i class="psb-emoji">💇</i>发型与妆容</span><span class="psb-v">堕马髻端庄慵懒，不施粉黛而颜色如朝霞映雪</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

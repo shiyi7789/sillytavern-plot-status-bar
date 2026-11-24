@@ -311,12 +311,22 @@ function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+/** 把字段名开头的 emoji 拆出来，单独渲染成小图标，标签文字保持整洁 */
+function keyHtml(label) {
+  const raw = String(label ?? '');
+  const m = raw.match(/^([\p{Extended_Pictographic}\uFE0F\u200D]+)\s*(.+)$/u);
+  if (m && m[2]) {
+    return `<i class="psb-emoji">${esc(m[1])}</i>${esc(m[2])}`;
+  }
+  return esc(raw);
+}
+
 function renderValue(v, label) {
   if (v === null || v === undefined) return '';
   if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
     const text = String(v).trim();
     if (!text) return '';
-    return `<div class="psb-row"><span class="psb-k">${esc(label)}</span><span class="psb-v">${esc(text)}</span></div>`;
+    return `<div class="psb-row"><span class="psb-k">${keyHtml(label)}</span><span class="psb-v">${esc(text)}</span></div>`;
   }
   if (Array.isArray(v)) {
     const items = v.map((item) => {
@@ -328,12 +338,12 @@ function renderValue(v, label) {
       return `<div class="psb-row"><span class="psb-v">${esc(item)}</span></div>`;
     }).join('');
     if (!items) return '';
-    return `<div class="psb-group"><div class="psb-group-title">${esc(label)}</div>${items}</div>`;
+    return `<div class="psb-group"><div class="psb-group-title">${keyHtml(label)}</div>${items}</div>`;
   }
   if (isPlainObject(v)) {
     const inner = Object.entries(v).map(([k, val]) => renderValue(val, k)).join('');
     if (!inner) return '';
-    return `<details class="psb-group" open><summary>${esc(label)}</summary>${inner}</details>`;
+    return `<details class="psb-group" open><summary>${keyHtml(label)}</summary>${inner}</details>`;
   }
   return '';
 }
