@@ -182,14 +182,16 @@ const DEMO_STATUS = {
 /* 基础工具                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * 每次都要重新取上下文：getContext() 返回的是「当时」的快照
+ * （characterId / chat / chatId 都会随切角色、切聊天而变），缓存住就会拿到过期值。
+ */
 function C() {
-  if (ctx) return ctx;
   try {
-    ctx = globalThis.SillyTavern?.getContext?.() ?? null;
+    return globalThis.SillyTavern?.getContext?.() ?? null;
   } catch (e) {
-    ctx = null;
+    return null;
   }
-  return ctx;
 }
 
 function esc(s) {
@@ -538,8 +540,9 @@ function hasCharacter() {
   const c = C();
   if (!c) return false;
   const id = c.characterId;
-  if (id !== undefined && id !== null && id !== '') return true;
+  if (id !== undefined && id !== null && String(id) !== '' && String(id) !== 'undefined') return true;
   if (c.groupId) return true;
+  if (c.chatId) return true;          // 已经在某个聊天里（有些版本 characterId 此刻还没就位）
   return false;
 }
 
@@ -547,6 +550,22 @@ function hasCharacter() {
 
 let drag = null;
 let dragBound = false;
+let lastFloatState = null;
+let floatWatch = null;
+
+/**
+ * 兜底守卫：角色卡开关时，不同版本 ST 发的事件不一样，
+ * 这里每隔 1.5 秒比对一次「有没有角色卡」，一变就重绘，避免停在旧空态。
+ */
+function startFloatWatch() {
+  if (floatWatch) return;
+  floatWatch = setInterval(() => {
+    if (settings.displayMode !== 'float') return;
+    if (document.visibilityState !== 'visible') return;
+    const state = hasCharacter() ? 'char' : 'none';
+    if (state !== lastFloatState) renderFloat();
+  }, 1500);
+}
 
 function applyFloatPos(host) {
   const pos = settings.floatPos;
@@ -663,6 +682,7 @@ function renderFloat(entry) {
 
   const shown = entry || latestStatusEntry();
   const charOpen = hasCharacter();
+  lastFloatState = charOpen ? 'char' : 'none';
   const item = charOpen ? shown : null;     // 没角色卡时不显示任何旧内容
   const host = ensureFloatHost();
 
@@ -1184,6 +1204,11 @@ function bindEvents() {
     applyInjection();
     setTimeout(renderAll, 300);
   });
+  // 选角色卡 / 换角色时也要立刻刷新浮动面板的空态
+  on('CHARACTER_SELECTED', () => {
+    applyInjection();
+    setTimeout(renderAll, 300);
+  });
   on('GENERATION_STARTED', () => applyInjection());
 
   bound = true;
@@ -1525,6 +1550,7 @@ export async function activate() {
     buildUI();
     bindEvents();
     applyInjection();
+    startFloatWatch();
     setTimeout(renderAll, 500);
     console.log(TAG, '已加载', {
       mode: settings.mode,
