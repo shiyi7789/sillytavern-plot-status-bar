@@ -220,11 +220,26 @@ function getMessage(id) {
   return getChat()[id] ?? null;
 }
 
-function persistChat() {
+/**
+ * 保存聊天。ST 刚收完消息时自身正在写盘，直接存可能被跳过，
+ * 所以存完再延迟补一次，确保状态栏真的落到文件里。
+ */
+function persistChat(attempt = 0) {
+  const c = C();
+  if (!c) return;
   try {
-    C()?.saveChat?.();
+    if (typeof c.saveChatConditional === 'function') c.saveChatConditional();
+    else if (typeof c.saveChat === 'function') c.saveChat();
   } catch (e) {
-    console.warn(TAG, '保存聊天失败', e);
+    if (attempt < 2) setTimeout(() => persistChat(attempt + 1), 800);
+    else console.warn(TAG, '保存聊天失败', e);
+  }
+  if (attempt === 0) {
+    setTimeout(() => {
+      try {
+        if (typeof C()?.saveChatConditional === 'function') C().saveChatConditional();
+      } catch (e) { /* ignore */ }
+    }, 2000);
   }
 }
 
@@ -266,34 +281,91 @@ function saveSettings() {
 /* 楼层状态存取                                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * 状态栏存储分两层，互为备份：
+ *   1. chat[mesid].extra.plotStatusBar —— 跟着消息走
+ *   2. chat_metadata.plotStatusBar   —— 跟着聊天文件头走（刷新、重渲染都不会丢）
+ * 读取时先看消息，再回落到元数据；聊天加载后会自动回填到消息上。
+ */
+const META_BAG = KEY;
+
+function statusMeta() {
+  try {
+    const meta = C()?.chatMetadata;
+    if (!meta) return null;
+    if (!meta[META_BAG] || typeof meta[META_BAG] !== 'object') meta[META_BAG] = {};
+    return meta[META_BAG];
+  } catch (e) {
+    return null;
+  }
+}
+
 function getStatus(id) {
   const msg = getMessage(id);
-  return msg?.extra?.[KEY]?.data ?? null;
+  const fromMsg = msg?.extra?.[KEY]?.data;
+  if (fromMsg) return fromMsg;
+  const bag = statusMeta();
+  return bag?.[id]?.data ?? null;
 }
 
 function getStatusMeta(id) {
   const msg = getMessage(id);
-  return msg?.extra?.[KEY] ?? null;
+  const fromMsg = msg?.extra?.[KEY];
+  if (fromMsg) return fromMsg;
+  const bag = statusMeta();
+  return bag?.[id] ?? null;
 }
 
 function setStatus(id, data, meta = {}) {
-  const msg = getMessage(id);
-  if (!msg) return false;
-  msg.extra = msg.extra && typeof msg.extra === 'object' ? msg.extra : {};
-  msg.extra[KEY] = {
+  const stored = {
     data,
     ts: Date.now(),
     mode: settings.mode,
     ...meta,
   };
-  return true;
+  const msg = getMessage(id);
+  if (msg) {
+    msg.extra = msg.extra && typeof msg.extra === 'object' ? msg.extra : {};
+    msg.extra[KEY] = stored;
+  }
+  const bag = statusMeta();
+  if (bag) bag[id] = stored;          // 副本进元数据，作为持久层
+  return !!(msg || bag);
 }
 
 function clearStatus(id) {
+  let touched = false;
   const msg = getMessage(id);
-  if (!msg?.extra?.[KEY]) return false;
-  delete msg.extra[KEY];
-  return true;
+  if (msg?.extra?.[KEY]) {
+    delete msg.extra[KEY];
+    touched = true;
+  }
+  const bag = statusMeta();
+  if (bag && bag[id]) {
+    delete bag[id];
+    touched = true;
+  }
+  return touched;
+}
+
+/** 聊天加载后：把元数据里的状态栏回填到对应消息上（消息侧丢了也能救回来） */
+function backfillStatusFromMeta() {
+  const bag = statusMeta();
+  if (!bag) return 0;
+  const chat = getChat();
+  let fixed = 0;
+  for (const [key, stored] of Object.entries(bag)) {
+    const id = Number(key);
+    if (!Number.isInteger(id) || id < 0 || id >= chat.length) continue;
+    const msg = chat[id];
+    if (!msg || !stored?.data) continue;
+    msg.extra = msg.extra && typeof msg.extra === 'object' ? msg.extra : {};
+    if (!msg.extra[KEY]) {
+      msg.extra[KEY] = stored;
+      fixed++;
+    }
+  }
+  return fixed;
 }
 
 /** 找到某楼层之前（含）最近一份状态栏 */
@@ -1305,6 +1377,8 @@ function bindEvents() {
     scheduleRender(realId);
   });
   on('CHAT_CHANGED', () => {
+    const fixed = backfillStatusFromMeta();
+    if (fixed) console.log(TAG, `从聊天元数据恢复了 ${fixed} 条状态栏`);
     applyInjection();
     setTimeout(renderAll, 300);
   });
@@ -1639,6 +1713,8 @@ export async function activate() {
       return;
     }
     loadSettings();
+    const restored = backfillStatusFromMeta();
+    if (restored) console.log(TAG, `启动时恢复 ${restored} 条状态栏`);
     buildUI();
     bindEvents();
     applyInjection();
