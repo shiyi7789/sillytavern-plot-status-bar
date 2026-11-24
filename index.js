@@ -1162,6 +1162,15 @@ function looksLikeRefusal(text) {
 
 async function callExtra(prompt) {
   const attempts = [];
+
+  // 直连模式选了就必须真的走直连：缺配置直接报清楚，别偷偷换成别的通道
+  if (settings.apiMode === 'direct') {
+    const base = String(settings.baseUrl || '').trim();
+    const model = String(settings.model || '').trim();
+    if (!base) throw new Error('直连模式：接口地址是空的，请填写（例如 https://api.deepseek.com/v1）');
+    if (!model) throw new Error('直连模式：模型名是空的，请点「拉取模型」选一个或手动填写');
+  }
+
   const useProfile = settings.apiMode === 'profile' && !!settings.profileId;
   const useDirect = settings.apiMode === 'direct' && !!String(settings.baseUrl || '').trim();
 
@@ -1178,6 +1187,7 @@ async function callExtra(prompt) {
   let lastErr = null;
   for (const [label, fn] of attempts) {
     try {
+      console.log(TAG, `本次调用通道：${label}`);
       const text = await fn();
       if (looksLikeRefusal(text)) {
         console.warn(TAG, `${label} 返回了拒答，换下一个通道：`, String(text).slice(0, 120));
@@ -1190,6 +1200,7 @@ async function callExtra(prompt) {
       console.warn(TAG, `${label} 失败：${e?.message || e}`);
     }
   }
+  if (!attempts.length) throw new Error('没有任何可用的调用通道：请在设置里选连接配置，或切到直连并填好地址与模型');
   throw lastErr || new Error('所有 API 调用都失败');
 }
 
