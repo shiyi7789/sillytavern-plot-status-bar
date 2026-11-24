@@ -581,6 +581,51 @@ async function callViaProfile(prompt) {
   return String(text);
 }
 
+/** 把用户填的地址规范成 {base}/models */
+function modelsUrl(raw) {
+  let b = String(raw || '').trim().replace(/\/+$/, '');
+  if (!b) return '';
+  if (!/^https?:\/\//i.test(b)) b = 'http://' + b;
+  b = b.replace(/\/chat\/completions$/i, '');
+  return b + '/models';
+}
+
+/** 拉取 OpenAI 兼容接口的模型列表 */
+async function fetchModelList() {
+  const url = modelsUrl(settings.baseUrl);
+  if (!url) throw new Error('先填接口地址');
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {}),
+      },
+      signal: ctrl.signal,
+    });
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}${resp.status === 401 || resp.status === 403 ? '（密钥不对或没权限）' : ''}`);
+    }
+    const json = await resp.json();
+    const rows = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+    const ids = rows
+      .map((x) => (typeof x === 'string' ? x : (x?.id ?? x?.name ?? x?.model)))
+      .filter((x) => typeof x === 'string' && x.trim())
+      .map((x) => x.trim());
+    if (!ids.length) throw new Error('返回里没有模型列表');
+    return [...new Set(ids)].sort();
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error('请求超时（12 秒）');
+    if (e instanceof TypeError) throw new Error('连不上或跨域被拦（浏览器同源策略）');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callViaDirect(prompt) {
   const base = String(settings.baseUrl || '').replace(/\/+$/, '');
   if (!base) throw new Error('没有填写 API 地址');
@@ -903,7 +948,12 @@ function buildUI() {
             <span class="psb-label">API Key</span>
             <input id="psb-apikey" class="text_pole" type="password" placeholder="sk-...">
             <span class="psb-label">模型</span>
-            <input id="psb-model" class="text_pole" type="text" placeholder="deepseek-chat">
+            <div class="psb-inline">
+              <input id="psb-model" class="text_pole" type="text" list="psb-model-list" placeholder="点右边拉取，或直接手打" style="flex:1 1 150px; min-width:120px;">
+              <div class="menu_button" id="psb-fetch-models" title="用上面的地址与密钥拉取可用模型">⟳ 拉取模型</div>
+            </div>
+            <datalist id="psb-model-list"></datalist>
+            <small id="psb-model-hint" class="psb-hint"></small>
             <span class="psb-label">温度</span>
             <input id="psb-temp" class="text_pole" type="number" step="0.05" min="0" max="2">
           </div>
@@ -1011,6 +1061,41 @@ function buildUI() {
   $('psb-baseurl').addEventListener('input', (e) => { settings.baseUrl = e.target.value.trim(); saveSettings(); });
   $('psb-apikey').addEventListener('input', (e) => { settings.apiKey = e.target.value.trim(); saveSettings(); });
   $('psb-model').addEventListener('input', (e) => { settings.model = e.target.value.trim(); saveSettings(); });
+
+  // 按地址 + 密钥拉取模型列表
+  $('psb-fetch-models').addEventListener('click', async () => {
+    const btn = $('psb-fetch-models');
+    const hint = $('psb-model-hint');
+    if (btn.dataset.busy === '1') return;
+
+    const target = modelsUrl(settings.baseUrl);
+    if (!target) {
+      hint.textContent = '先在上面填接口地址（例如 http://127.0.0.1:8080/v1）';
+      return;
+    }
+
+    const old = btn.textContent;
+    btn.dataset.busy = '1';
+    btn.textContent = '拉取中…';
+    hint.textContent = `正在请求 ${target} …`;
+    try {
+      const ids = await fetchModelList();
+      $('psb-model-list').innerHTML = ids.map((id) => `<option value="${esc(id)}"></option>`).join('');
+      hint.textContent = `拉到 ${ids.length} 个模型 —— 点模型框就能选，也可以继续手打`;
+      if (!settings.model && ids.length) {
+        settings.model = ids[0];
+        $('psb-model').value = ids[0];
+        saveSettings();
+      }
+      console.log(TAG, `拉到 ${ids.length} 个模型`, ids);
+    } catch (e) {
+      hint.textContent = '拉取失败：' + (e?.message || e);
+      console.warn(TAG, '拉取模型失败：', e?.message || e);
+    } finally {
+      btn.textContent = old;
+      btn.dataset.busy = '0';
+    }
+  });
   $('psb-temp').addEventListener('input', (e) => { settings.temperature = Number(e.target.value) || 0.85; saveSettings(); });
   $('psb-fallback').addEventListener('change', (e) => { settings.fallbackToMain = e.target.checked; saveSettings(); });
   $('psb-inject').addEventListener('change', (e) => {
