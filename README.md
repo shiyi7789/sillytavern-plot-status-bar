@@ -13,14 +13,26 @@
 
 ## 安装
 
-把整个 `plot-status-bar` 文件夹复制到：
+**方式一：Git URL（推荐，方便以后更新）**
+
+酒馆 → 扩展程序面板 → 「安装扩展程序」，填入：
+
+```
+https://github.com/shiyi7789/sillytavern-plot-status-bar
+```
+
+**方式二：复制文件夹**
+
+把整个文件夹复制到（目录名随意）：
 
 ```
 SillyTavern/public/scripts/extensions/third-party/plot-status-bar/
 ```
 
+放完确保 `third-party/plot-status-bar/manifest.json` 存在。
+
 刷新酒馆（Ctrl+F5）→ 打开「扩展」面板 → 勾选启用 **剧情状态栏**。
-首次启用后，在面板里选模式、选额外 API。
+首次启用后，在面板里选模式、选额外 API。可以先点 **预览样式** 看效果，不花 API。
 
 ## 两种模式
 
