@@ -231,6 +231,23 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
 }
 
+/* 标题栏可拖动 */
+#psb-float .psb-drag-handle {
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+#psb-float.is-dragging .psb-panel {
+  opacity: 0.94;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+}
+
+#psb-float.is-dragging,
+#psb-float.is-dragging * {
+  cursor: move !important;
+}
+
 .psb-float-pill {
   display: inline-flex;
   align-items: center;

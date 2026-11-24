@@ -98,6 +98,7 @@ const DEFAULTS = {
   // 显示位置
   displayMode: 'float',       // float = 浮动面板（正文外）；inline = 楼层内
   floatCollapsed: false,
+  floatPos: null,             // {x, y}；null = 默认右下角
 
   showModeBadge: true,
 };
@@ -522,57 +523,192 @@ function ensureFloatHost() {
   return host;
 }
 
-/** 渲染浮动面板；entry 为空时用最近一条状态栏 */
+/** 是否已经打开了角色卡 / 群聊 */
+function hasCharacter() {
+  const c = C();
+  if (!c) return false;
+  const id = c.characterId;
+  if (id !== undefined && id !== null && id !== '') return true;
+  if (c.groupId) return true;
+  return false;
+}
+
+/* ---------------- 拖动 ---------------- */
+
+let drag = null;
+let dragBound = false;
+
+function applyFloatPos(host) {
+  const pos = settings.floatPos;
+  if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+    const p = clampFloatPos(host, pos.x, pos.y);   // 换设备/换窗口后夹回可视区
+    host.style.left = `${p.x}px`;
+    host.style.top = `${p.y}px`;
+    host.style.right = 'auto';
+    host.style.bottom = 'auto';
+  } else {
+    host.style.left = '';
+    host.style.top = '';
+    host.style.right = '';
+    host.style.bottom = '';
+  }
+}
+
+function clampFloatPos(host, x, y) {
+  const w = host.offsetWidth || 320;
+  const h = host.offsetHeight || 80;
+  return {
+    x: Math.min(Math.max(4, x), Math.max(4, window.innerWidth - w - 4)),
+    y: Math.min(Math.max(4, y), Math.max(4, window.innerHeight - h - 4)),
+  };
+}
+
+function bindDragOnce() {
+  if (dragBound) return;
+  dragBound = true;
+
+  window.addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    const { host, sx, sy, ox, oy } = drag;
+    const p = clampFloatPos(host, ox + (ev.clientX - sx), oy + (ev.clientY - sy));
+    host.style.left = `${p.x}px`;
+    host.style.top = `${p.y}px`;
+    host.style.right = 'auto';
+    host.style.bottom = 'auto';
+  }, { passive: true });
+
+  window.addEventListener('pointerup', () => {
+    if (!drag) return;
+    const { host } = drag;
+    host.classList.remove('is-dragging');
+    drag = null;
+    const r = host.getBoundingClientRect();
+    settings.floatPos = { x: Math.round(r.left), y: Math.round(r.top) };
+    saveSettings();
+  });
+
+  window.addEventListener('resize', () => {
+    const host = document.getElementById('psb-float');
+    if (!host || !settings.floatPos) return;
+    const p = clampFloatPos(host, settings.floatPos.x, settings.floatPos.y);
+    host.style.left = `${p.x}px`;
+    host.style.top = `${p.y}px`;
+  });
+}
+
+/** 让标题栏成为拖动把手 */
+function attachDrag(host, head) {
+  if (!head) return;
+  bindDragOnce();
+  head.classList.add('psb-drag-handle');
+  head.title = '按住可拖动';
+
+  head.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    if (ev.target.closest('button')) return;      // 按钮不触发拖动
+    const r = host.getBoundingClientRect();
+    host.style.left = `${r.left}px`;
+    host.style.top = `${r.top}px`;
+    host.style.right = 'auto';
+    host.style.bottom = 'auto';
+    host.classList.add('is-dragging');
+    drag = { host, sx: ev.clientX, sy: ev.clientY, ox: r.left, oy: r.top };
+  });
+
+  // 双击标题栏复位到默认位置
+  head.addEventListener('dblclick', () => {
+    settings.floatPos = null;
+    saveSettings();
+    applyFloatPos(host);
+  });
+}
+
+function collapseButton(item) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'psb-btn';
+  btn.title = '收起成小药丸';
+  btn.textContent = '⌄';
+  btn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    settings.floatCollapsed = true;
+    saveSettings();
+    renderFloat(item);
+  });
+  return btn;
+}
+
+/**
+ * 渲染浮动面板。
+ * - 有状态：渲染最近一条
+ * - 没状态但有角色卡：显示空态提示（插件一启动就看得见）
+ * - 没打开角色卡：只显示「未打开角色卡」，不出旧内容
+ */
 function renderFloat(entry) {
-  const existing = document.getElementById('psb-float');
   if (settings.displayMode !== 'float') {
-    existing?.remove();
+    document.getElementById('psb-float')?.remove();
     return;
   }
 
-  const item = entry || latestStatusEntry();
-  if (!item) {
-    if (existing) { existing.innerHTML = ''; existing.classList.add('is-empty'); }
-    return;
-  }
-
+  const shown = entry || latestStatusEntry();
+  const charOpen = hasCharacter();
+  const item = charOpen ? shown : null;     // 没角色卡时不显示任何旧内容
   const host = ensureFloatHost();
+
+  if (!charOpen && !entry) settings.floatCollapsed = false;  // 空态时别收成药丸
+
   host.classList.remove('is-empty');
   host.classList.toggle('is-collapsed', !!settings.floatCollapsed);
   host.innerHTML = '';
 
+  // 收起状态：小药丸
   if (settings.floatCollapsed) {
     const pill = document.createElement('button');
     pill.type = 'button';
     pill.className = 'psb-float-pill';
-    pill.innerHTML = `📋 状态栏${item.data?.角色 ? `<span class="psb-float-name">${esc(item.data.角色)}</span>` : ''}`;
+    pill.innerHTML = `📋 状态栏${item?.data?.角色 ? `<span class="psb-float-name">${esc(item.data.角色)}</span>` : ''}`;
     pill.addEventListener('click', () => {
       settings.floatCollapsed = false;
       saveSettings();
       renderFloat(item);
     });
     host.appendChild(pill);
+    applyFloatPos(host);
     return;
   }
 
+  // 空态
+  if (!item) {
+    const panel = document.createElement('div');
+    panel.className = 'psb-panel';
+    const tip = charOpen
+      ? '还没有状态栏 —— 聊一句就会自动生成'
+      : '未打开角色卡';
+    panel.innerHTML = `
+      <div class="psb-head">
+        <span class="psb-title">📋 状态栏</span>
+        <span class="psb-spacer"></span>
+      </div>
+      <div class="psb-empty">${esc(tip)}</div>
+    `;
+    const head = panel.querySelector('.psb-head');
+    head.insertBefore(collapseButton(null), head.lastElementChild);
+    attachDrag(host, head);
+    host.appendChild(panel);
+    applyFloatPos(host);
+    return;
+  }
+
+  // 正常内容
   const panel = buildPanel(item.id, item.data, item.meta);
   const head = panel.querySelector('.psb-head');
   if (head) {
-    const collapse = document.createElement('button');
-    collapse.type = 'button';
-    collapse.className = 'psb-btn';
-    collapse.title = '收起到右下角';
-    collapse.textContent = '⌄';
-    collapse.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      settings.floatCollapsed = true;
-      saveSettings();
-      renderFloat(item);
-    });
-    head.insertBefore(collapse, head.querySelector('[data-psb-act="regen"]'));
+    head.insertBefore(collapseButton(item), head.querySelector('[data-psb-act="regen"]'));
+    attachDrag(host, head);
   }
   host.appendChild(panel);
+  applyFloatPos(host);
 }
 
 /* ------------------------------------------------------------------ */
