@@ -95,6 +95,10 @@ const DEFAULTS = {
   // 字段规格升级标记
   specVersion: 3,
 
+  // 显示位置
+  displayMode: 'float',       // float = 浮动面板（正文外）；inline = 楼层内
+  floatCollapsed: false,
+
   showModeBadge: true,
 };
 
@@ -463,6 +467,7 @@ function panelHost(mesEl) {
 }
 
 function renderOne(id) {
+  if (settings.displayMode === 'float') return;   // 浮动模式下不再往楼层里塞
   const mesEl = document.querySelector(`#chat .mes[mesid="${id}"]`);
   if (!mesEl) return;
   removePanel(id);
@@ -473,17 +478,101 @@ function renderOne(id) {
 }
 
 function renderAll() {
+  if (settings.displayMode === 'float') {
+    renderFloat();
+    return;
+  }
   const chat = getChat();
   for (let i = 0; i < chat.length; i++) renderOne(i);
 }
 
 function scheduleRender(id) {
+  if (settings.displayMode === 'float') {
+    requestAnimationFrame(() => renderFloat());
+    return;
+  }
   if (pendingRender.has(id)) return;
   pendingRender.add(id);
   requestAnimationFrame(() => {
     pendingRender.delete(id);
     renderOne(id);
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* 浮动面板（正文外显示）                                              */
+/* ------------------------------------------------------------------ */
+
+/** 找最近一条带状态栏的楼层 */
+function latestStatusEntry() {
+  const chat = getChat();
+  for (let i = chat.length - 1; i >= 0; i--) {
+    const data = getStatus(i);
+    if (data) return { id: i, data, meta: getStatusMeta(i) };
+  }
+  return null;
+}
+
+function ensureFloatHost() {
+  let host = document.getElementById('psb-float');
+  if (host) return host;
+  host = document.createElement('div');
+  host.id = 'psb-float';
+  document.body.appendChild(host);
+  return host;
+}
+
+/** 渲染浮动面板；entry 为空时用最近一条状态栏 */
+function renderFloat(entry) {
+  const existing = document.getElementById('psb-float');
+  if (settings.displayMode !== 'float') {
+    existing?.remove();
+    return;
+  }
+
+  const item = entry || latestStatusEntry();
+  if (!item) {
+    if (existing) { existing.innerHTML = ''; existing.classList.add('is-empty'); }
+    return;
+  }
+
+  const host = ensureFloatHost();
+  host.classList.remove('is-empty');
+  host.classList.toggle('is-collapsed', !!settings.floatCollapsed);
+  host.innerHTML = '';
+
+  if (settings.floatCollapsed) {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'psb-float-pill';
+    pill.innerHTML = `📋 状态栏${item.data?.角色 ? `<span class="psb-float-name">${esc(item.data.角色)}</span>` : ''}`;
+    pill.addEventListener('click', () => {
+      settings.floatCollapsed = false;
+      saveSettings();
+      renderFloat(item);
+    });
+    host.appendChild(pill);
+    return;
+  }
+
+  const panel = buildPanel(item.id, item.data, item.meta);
+  const head = panel.querySelector('.psb-head');
+  if (head) {
+    const collapse = document.createElement('button');
+    collapse.type = 'button';
+    collapse.className = 'psb-btn';
+    collapse.title = '收起到右下角';
+    collapse.textContent = '⌄';
+    collapse.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      settings.floatCollapsed = true;
+      saveSettings();
+      renderFloat(item);
+    });
+    head.insertBefore(collapse, head.querySelector('[data-psb-act="regen"]'));
+  }
+  host.appendChild(panel);
 }
 
 /* ------------------------------------------------------------------ */
@@ -807,6 +896,8 @@ async function generate(id, { force = false } = {}) {
     }
     setStatus(id, obj, { source: 'extra' });
     persistChat();
+    if (settings.displayMode === 'float') settings.floatCollapsed = false;  // 有新状态就展开
+    saveSettings();
     scheduleRender(id);
     applyInjection();
     console.log(TAG, `第 ${id} 楼状态栏已生成`);
@@ -833,6 +924,8 @@ function harvestMainBlock(id, { rerender = true } = {}) {
 
   if (obj && looksLikeStatus(obj)) {
     setStatus(id, obj, { source: 'main' });
+    if (settings.displayMode === 'float') settings.floatCollapsed = false;
+    saveSettings();
   }
   msg.mes = cleaned;
   persistChat();
@@ -997,6 +1090,15 @@ function buildUI() {
           <small id="psb-mode-hint" class="psb-hint"></small>
         </div>
 
+        <div class="psb-field">
+          <span class="psb-label">显示位置</span>
+          <select id="psb-display" class="text_pole">
+            <option value="float">浮动面板（正文外，推荐）</option>
+            <option value="inline">楼层内（跟消息一起）</option>
+          </select>
+          <small class="psb-hint">浮动面板固定在右下角，手机上变成底部浮层，不占正文；点标题栏的 ⌄ 收起成小药丸。读正文时用的是同一份最新状态，不受显示位置影响。</small>
+        </div>
+
         <div id="psb-extra-box">
           <div class="psb-field">
             <span class="psb-label">额外 API 调用方式</span>
@@ -1092,6 +1194,7 @@ function buildUI() {
   $('psb-skip-greeting').checked = !!settings.skipGreetings;
   wrap.querySelectorAll('input[name="psb-mode"]').forEach((el) => { el.checked = el.value === settings.mode; });
   $('psb-apimode').value = settings.apiMode;
+  $('psb-display').value = settings.displayMode;
   // 连接配置：没选过或选的那条已被删掉时，默认落到第一个可用配置
   const profSel = $('psb-profile');
   const hasProf = settings.profileId && Array.from(profSel.options).some((o) => o.value === settings.profileId);
@@ -1137,6 +1240,16 @@ function buildUI() {
     settings.apiMode = e.target.value;
     saveSettings();
     syncVisibility();
+  });
+
+  $('psb-display').addEventListener('change', (e) => {
+    settings.displayMode = e.target.value === 'inline' ? 'inline' : 'float';
+    saveSettings();
+    document.querySelectorAll('#chat .psb-panel').forEach((n) => n.remove());
+    renderAll();
+    if (settings.displayMode === 'inline') {
+      document.getElementById('psb-float')?.remove();
+    }
   });
   $('psb-profile').addEventListener('change', (e) => { settings.profileId = e.target.value; saveSettings(); });
   $('psb-baseurl').addEventListener('input', (e) => { settings.baseUrl = e.target.value.trim(); saveSettings(); });
@@ -1221,6 +1334,12 @@ function buildUI() {
   });
 
   $('psb-preview').addEventListener('click', () => {
+    if (settings.displayMode === 'float') {
+      settings.floatCollapsed = false;
+      saveSettings();
+      renderFloat({ id: -1, data: DEMO_STATUS, meta: { mode: settings.mode } });
+      return;
+    }
     const host = $('psb-preview-host');
     const first = host.firstChild;
     if (first) {                       // 再点一次收起

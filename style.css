@@ -207,6 +207,64 @@
   .psb-chip { padding: 3px 8px; font-size: 11px; }
 }
 
+/* 浮动面板：状态栏显示在正文之外 */
+#psb-float {
+  position: fixed;
+  right: 14px;
+  bottom: 86px;
+  width: min(430px, 44vw);
+  z-index: 8000;
+  pointer-events: auto;
+}
+
+#psb-float.is-empty { display: none; }
+
+#psb-float.is-collapsed {
+  display: flex;
+  justify-content: flex-end;
+  width: auto;
+}
+
+#psb-float .psb-panel {
+  margin: 0;
+  max-height: 62vh;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
+}
+
+.psb-float-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(150, 180, 255, 0.34);
+  background: rgba(28, 33, 50, 0.95);
+  color: #cfdcff;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+
+.psb-float-pill:hover { background: rgba(46, 56, 86, 0.96); }
+
+.psb-float-name {
+  color: #8fa8ff;
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  #psb-float {
+    left: 8px;
+    right: 8px;
+    bottom: 76px;
+    width: auto;
+  }
+  #psb-float .psb-panel { max-height: 48vh; }
+}
+
 /* 设置面板 */
 .psb-settings .psb-field { margin-bottom: 10px; }
 
