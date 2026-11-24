@@ -43,6 +43,7 @@ const DEFAULT_FIELD_SPEC = `顶层固定 6 组，每组是一个对象；每个�
   💇 发型与妆容 / 👀 面部表情与眼神 / 🫦 唇与口部 / ✨ 颈项与锁骨（各 15~40 字）
 
 身体：
+  下面 13 项必须全部出现，一项都不能省（哪怕这轮没变化、哪怕写「无」也要写出来）：
   胸部 / 腰腹背部 / 臀部 / 腿部与足踝 / 手部 / 阴部 / 阴道口 / 大小阴唇 / 尿道 / 阴蒂 / 子宫 / 卵巢 / 肛门
   每项 20~50 字，顺序固定为：形态尺寸 → 此刻状态 → 残留痕迹或气味温度 → 若有变化点明成因；男性角色没有的器官写「无」
 
@@ -92,7 +93,7 @@ const DEFAULTS = {
   injectCompact: true,
 
   // 字段规格升级标记
-  specVersion: 2,
+  specVersion: 3,
 
   showModeBadge: true,
 };
@@ -152,7 +153,17 @@ const DEMO_STATUS = {
   身体: {
     胸部: '胸围三尺（B100，I罩杯），因贴身衣物损毁而真空贴在软缎长衫内，两团硕大浑圆的羊脂雪乳失去承托，随着一呼一吸沉甸甸地微微晃荡，两颗浅粉红豆因直接摩擦绸缎而微微挺立',
     腰腹背部: '腰围一尺八寸三（W61），纤腰盈盈一握；体内气海窍与五脏玄窍全部贯通，形成生生不息的混元大循环；小腹正中偏下的半掌大粉金色重瓣莲纹已完美隐入肌肤之下',
+    臀部形态: '臀围 H101，圆润挺翘的蜜桃雪臀在百褶裙下真空晃动，臀肉在脾窍气血滋养下愈发紧致弹滑，不见半点红印',
     腿部与足踝: '丰腴修长的玉腿在裙摆下光裸交叠，方才施展轻功飞掠时被晨风吹拂得微凉滑腻',
+    手部: '十指纤长圆润，指甲呈天然健康的淡粉色，指尖还残留着抚琴后的一点薄茧',
+    阴部状态: '天生无毛的极品「白虎」，虽承受了整夜征伐，但在六窍贯通与玄牝汲元的恢复力下已彻底蒸干净化，重归干爽洁净，在真空裙下散发清冷幽兰香',
+    阴道口状态: '粉红色的娇嫩阴道口已完全收缩闭合，恢复到如同未经人事的处子般紧致的状态',
+    大小阴唇: '饱满光滑的浅粉色大阴唇紧密合拢成一条细细的「一线天」缝隙，将淡粉色小阴唇严密遮掩，宛如一件温润无瑕的羊脂玉器',
+    尿道: '细小尿道口干爽洁净',
+    阴蒂: '粉嫩小巧的阴蒂已平息充血，隐于一线天顶端',
+    子宫状态: '宫腔内今夜被连续灌注六次本命纯阳浓精，现已被双侧卵巢烘炉一滴不漏地抽干提纯完毕；宫口已恢复紧密闭合，宫腔温润洁净，未受孕',
+    卵巢状态: '双侧卵巢被繁复粉金色莲纹彻底包裹！这座烘炉不仅以先天锁孕阻断受孕可能，更将纯阳本源尽数转化为灵液',
+    肛门状态: '浅粉菊蕾干爽紧致，隐于真空的蜜桃臀缝深处',
   },
   情境: {
     '🤸 当前动作细节': '翻窗入内后将窗栓重新扣好，此刻正站在昏暗幽静的铜镜前，指尖停在衣襟系带上，准备换回月白真丝睡衣',
@@ -325,6 +336,12 @@ function renderValue(v, label) {
 const SECTION_ORDER = ['基础', '属性', '能力', '外观', '身体', '情境'];
 const SECTION_ICON = { 基础: '📋', 属性: '📊', 能力: '💪', 外观: '👗', 身体: '🔞', 情境: '🎭' };
 
+/** 身体必须齐全的 13 项；模型漏了要显式标出来，而不是悄悄少一行 */
+const EXPECTED_BODY = [
+  '胸部', '腰腹背部', '臀部', '腿部与足踝', '手部', '阴部', '阴道口',
+  '大小阴唇', '尿道', '阴蒂', '子宫', '卵巢', '肛门',
+];
+
 function normalizeSection(key) {
   const k = String(key);
   if (k === '角色' || k === '姓名') return null;
@@ -354,9 +371,21 @@ function buildPanel(id, data, meta) {
   const groups = [];
   for (const [k, v] of Object.entries(data || {})) {
     if (k === '角色' || k === '姓名') continue;
-    const inner = renderValue(v, k);
-    if (!inner) continue;
     const norm = normalizeSection(k);
+    let inner = renderValue(v, k);
+    // 身体类：把模型漏掉的项显式补出来，避免「少了也看不出来」
+    if (norm === '身体' && isPlainObject(v)) {
+      const normKey = (s) => String(s).replace(/(状态|形态|细节|描述|情况)$/g, '').trim();
+      const present = Object.keys(v).map(normKey);
+      const missing = EXPECTED_BODY.filter((x) => !present.some((k) => k === x || k.startsWith(x)));
+      if (missing.length) {
+        inner += missing
+          .map((x) => `<div class="psb-row psb-miss"><span class="psb-k">${esc(x)}</span><span class="psb-v">未返回</span></div>`)
+          .join('');
+        console.warn(TAG, '身体缺项：', missing.join('、'));
+      }
+    }
+    if (!inner) continue;
     groups.push({
       key: k,
       icon: SECTION_ICON[norm] || '🏷️',
@@ -494,6 +523,7 @@ function buildExtraPrompt(id) {
   L.push('4. 所有描述写成中文句子，不要只写词。');
   L.push('5. 顶层键固定为：角色、基础、属性、能力、外观、身体、情境。「角色」是本状态栏主视角角色的名字。');
   L.push('6. 每个字段都要写满写细：具体数值 + 此刻状态 + 成因，括号里补充细节。宁可长，不要空泛，绝不留「待初始化」。');
+  L.push('7. 完整性：身体下的 13 项必须一项不少地出现在 JSON 里，缺任何一项都算没写完。');
   L.push('');
   L.push('【字段规格】');
   L.push(settings.fieldSpec || DEFAULT_FIELD_SPEC);

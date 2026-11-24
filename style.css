@@ -128,6 +128,16 @@
 
 .psb-row:last-child { border-bottom: none; }
 
+.psb-miss .psb-v {
+  color: #7f8cab;
+  font-style: italic;
+}
+
+.psb-miss .psb-v {
+  color: #7f8cab;
+  font-style: italic;
+}
+
 .psb-k {
   color: #93a6cf;
   font-size: 11.5px;
