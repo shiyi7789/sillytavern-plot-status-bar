@@ -99,6 +99,7 @@ const DEFAULTS = {
   displayMode: 'float',       // float = 浮动面板（正文外）；inline = 楼层内
   floatCollapsed: false,
   floatPos: null,             // {x, y}；null = 默认右下角
+  floatDock: null,            // {side:'left'|'right', y}：收起后的贴边位置
 
   showModeBadge: true,
 };
@@ -432,7 +433,7 @@ function buildPanel(id, data, meta) {
       ${badge}
       <span class="psb-spacer"></span>
       <button class="psb-btn" data-psb-act="regen" type="button" title="重新生成这条的状态栏">🔄</button>
-      <button class="psb-btn" data-psb-act="remove" type="button" title="移除这条的状态栏">✕</button>
+      <button class="psb-btn psb-danger" data-psb-act="remove" type="button" title="移除这条的状态栏">✕</button>
     </div>
     <div class="psb-chips">${tabs}</div>
     <div class="psb-panes">${panes}</div>
@@ -652,15 +653,25 @@ function attachDrag(host, head) {
   });
 }
 
+/** 收起：把面板变成贴边圆形图标，记住收在哪一侧、多高 */
 function collapseButton(item) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'psb-btn';
-  btn.title = '收起成小药丸';
-  btn.textContent = '⌄';
+  btn.className = 'psb-btn psb-collapse';
+  btn.title = '收起为贴边圆钮';
+  btn.textContent = '‹';
   btn.addEventListener('click', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
+    const host = document.getElementById('psb-float');
+    if (host) {
+      const r = host.getBoundingClientRect();
+      const side = (r.left + r.width / 2) < window.innerWidth / 2 ? 'left' : 'right';
+      settings.floatDock = {
+        side,
+        y: Math.round(Math.min(Math.max(r.top + r.height / 2, 60), window.innerHeight - 60)),
+      };
+    }
     settings.floatCollapsed = true;
     saveSettings();
     renderFloat(item);
@@ -674,7 +685,7 @@ function collapseButton(item) {
  * - 没状态但有角色卡：显示空态提示（插件一启动就看得见）
  * - 没打开角色卡：只显示「未打开角色卡」，不出旧内容
  */
-function renderFloat(entry) {
+function renderFloat(entry, animate = false) {
   if (settings.displayMode !== 'float') {
     document.getElementById('psb-float')?.remove();
     return;
@@ -688,23 +699,38 @@ function renderFloat(entry) {
 
   if (!charOpen && !entry) settings.floatCollapsed = false;  // 空态时别收成药丸
 
-  host.classList.remove('is-empty');
+  host.classList.remove('is-empty', 'is-opening');
   host.classList.toggle('is-collapsed', !!settings.floatCollapsed);
   host.innerHTML = '';
+  host.style.cssText = '';
 
-  // 收起状态：小药丸
+  // 收起状态：贴边圆形图标
   if (settings.floatCollapsed) {
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'psb-float-pill';
-    pill.innerHTML = `📋 状态栏${item?.data?.角色 ? `<span class="psb-float-name">${esc(item.data.角色)}</span>` : ''}`;
-    pill.addEventListener('click', () => {
+    const dock = settings.floatDock || { side: 'right', y: Math.round(window.innerHeight * 0.62) };
+    const y = Math.min(Math.max(dock.y, 60), window.innerHeight - 60);
+    host.style.top = `${y}px`;
+    host.style.bottom = 'auto';       // 否则 CSS 的 bottom 会把容器拉满整屏
+    host.style.height = 'auto';
+    host.style.transform = 'translateY(-50%)';
+    if (dock.side === 'left') {
+      host.style.left = '0px';
+      host.style.right = 'auto';
+    } else {
+      host.style.right = '0px';
+      host.style.left = 'auto';
+    }
+
+    const fab = document.createElement('button');
+    fab.type = 'button';
+    fab.className = 'psb-fab';
+    fab.title = `展开状态栏${item?.data?.角色 ? `：${item.data.角色}` : ''}`;
+    fab.innerHTML = '<span class="psb-fab-ico">📋</span>';
+    fab.addEventListener('click', () => {
       settings.floatCollapsed = false;
       saveSettings();
-      renderFloat(item);
+      renderFloat(item, true);      // 展开时做渐显
     });
-    host.appendChild(pill);
-    applyFloatPos(host);
+    host.appendChild(fab);
     return;
   }
 
@@ -723,10 +749,14 @@ function renderFloat(entry) {
       <div class="psb-empty">${esc(tip)}</div>
     `;
     const head = panel.querySelector('.psb-head');
-    head.insertBefore(collapseButton(null), head.lastElementChild);
+    head.insertBefore(collapseButton(null), head.firstChild);
     attachDrag(host, head);
     host.appendChild(panel);
     applyFloatPos(host);
+    if (animate) {
+      host.classList.add('is-opening');
+      setTimeout(() => host.classList.remove('is-opening'), 260);
+    }
     return;
   }
 
@@ -734,11 +764,15 @@ function renderFloat(entry) {
   const panel = buildPanel(item.id, item.data, item.meta);
   const head = panel.querySelector('.psb-head');
   if (head) {
-    head.insertBefore(collapseButton(item), head.querySelector('[data-psb-act="regen"]'));
+    head.insertBefore(collapseButton(item), head.firstChild);
     attachDrag(host, head);
   }
   host.appendChild(panel);
   applyFloatPos(host);
+  if (animate) {
+    host.classList.add('is-opening');
+    setTimeout(() => host.classList.remove('is-opening'), 260);
+  }
 }
 
 /* ------------------------------------------------------------------ */
