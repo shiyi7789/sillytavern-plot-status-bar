@@ -55,6 +55,7 @@ const DEFAULTS = {
   enabled: true,
   mode: 'extra',              // extra = 🔌 额外 API 生成；main = 🧠 主 AI 随正文输出
   auto: true,
+  skipGreetings: true,        // 开场白/问候语不生成状态栏
 
   // 额外 API
   apiMode: 'profile',         // profile = 用酒馆连接配置；direct = 直连 OpenAI 兼容接口
@@ -358,11 +359,11 @@ function buildPanel(id, data, meta) {
   }
 
   const tabs = groups
-    .map((g, i) => `<button class="psb-tab${i === 0 ? ' is-active' : ''}" data-psb-tab="${i}" type="button">${g.icon} ${esc(g.key)}</button>`)
+    .map((g, i) => `<button class="psb-chip" data-psb-tab="${i}" type="button">${g.icon} ${esc(g.key)}</button>`)
     .join('');
 
   const panes = groups
-    .map((g, i) => `<div class="psb-pane${i === 0 ? ' is-active' : ''}" data-psb-pane="${i}">${g.html}</div>`)
+    .map((g, i) => `<div class="psb-pane" data-psb-pane="${i}">${g.html}</div>`)
     .join('');
 
   el.innerHTML = `
@@ -373,20 +374,24 @@ function buildPanel(id, data, meta) {
       <button class="psb-btn" data-psb-act="regen" type="button" title="重新生成这条的状态栏">🔄</button>
       <button class="psb-btn" data-psb-act="remove" type="button" title="移除这条的状态栏">✕</button>
     </div>
-    <div class="psb-tabs">${tabs}</div>
-    <div class="psb-body">${panes}</div>
+    <div class="psb-chips">${tabs}</div>
+    <div class="psb-panes">${panes}</div>
   `;
 
-  // 分节换页
+  // 点一个显示一个；再点同一个收起；永远只开一个
   el.querySelectorAll('[data-psb-tab]').forEach((btn) => {
     btn.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      const i = btn.getAttribute('data-psb-tab');
-      el.querySelectorAll('[data-psb-tab]').forEach((b) => b.classList.toggle('is-active', b === btn));
-      el.querySelectorAll('[data-psb-pane]').forEach((p) => {
-        p.classList.toggle('is-active', p.getAttribute('data-psb-pane') === i);
-      });
+      const idx = btn.getAttribute('data-psb-tab');
+      const pane = el.querySelector(`[data-psb-pane="${idx}"]`);
+      const willOpen = !pane?.classList.contains('is-open');
+      el.querySelectorAll('[data-psb-pane]').forEach((p) => p.classList.remove('is-open'));
+      el.querySelectorAll('[data-psb-tab]').forEach((b) => b.classList.remove('is-open'));
+      if (willOpen) {
+        pane?.classList.add('is-open');
+        btn.classList.add('is-open');
+      }
     });
   });
 
@@ -757,20 +762,38 @@ function applyInjection() {
 /* 事件                                                                */
 /* ------------------------------------------------------------------ */
 
-function onCharacterRendered(id) {
-  const msg = id === undefined ? null : getMessage(id);
+/** 开场白/问候语：用户还没说话之前的那几条 AI 消息 */
+function isGreeting(id) {
+  const chat = getChat();
+  const msg = chat[id];
+  if (!msg || msg.is_user) return false;
+  if (msg.is_system) return true;
+  const firstUser = chat.findIndex((m) => m?.is_user);
+  if (firstUser === -1) return true;      // 一句话还没说，全是开场白
+  return id < firstUser;                  // 在用户第一次发言之前
+}
+
+/** 只在真正收到新正文时自动生成；开场白与重绘一律不触发 */
+function onMessageReceived(id, type) {
   const realId = typeof id === 'number' ? id : getChat().length - 1;
-  if (!msg && realId < 0) return;
+  if (realId < 0) return;
 
   if (settings.mode === 'main') {
-    harvestMainBlock(realId, { rerender: false });
+    harvestMainBlock(realId);
+    return;
   }
-  scheduleRender(realId);
+  if (!settings.auto) return;
+  if (settings.skipGreetings && (type === 'first_message' || isGreeting(realId))) {
+    console.log(TAG, '开场白不生成状态栏', realId, type);
+    return;
+  }
+  setTimeout(() => generate(realId, { force: false }), 600);
+}
 
-  if (settings.mode === 'extra' && settings.auto) {
-    const delay = 600;
-    setTimeout(() => generate(realId, { force: false }), delay);
-  }
+function onCharacterRendered(id) {
+  const realId = typeof id === 'number' ? id : getChat().length - 1;
+  if (realId < 0) return;
+  scheduleRender(realId);
 }
 
 function bindEvents() {
@@ -786,13 +809,16 @@ function bindEvents() {
     c.eventSource.on(ev, fn);
   };
 
+  // 重绘只负责把已存的状态栏画出来，绝不触发 API
   on('CHARACTER_MESSAGE_RENDERED', (id) => onCharacterRendered(id));
-  on('MESSAGE_RECEIVED', (id) => {
-    if (settings.mode === 'main') harvestMainBlock(typeof id === 'number' ? id : getChat().length - 1);
-  });
+
+  // 只有新消息到达才生成
+  on('MESSAGE_RECEIVED', (id, type) => onMessageReceived(id, type));
+
   on('MESSAGE_SWIPED', (id) => {
     const realId = typeof id === 'number' ? id : getChat().length - 1;
     clearStatus(realId);
+    if (settings.skipGreetings && isGreeting(realId)) return;
     if (settings.mode === 'main') harvestMainBlock(realId);
     else if (settings.auto) generate(realId, { force: true });
   });
@@ -844,6 +870,7 @@ function buildUI() {
         <div class="psb-field">
           <label class="checkbox_label"><input type="checkbox" id="psb-enabled"><span>启用</span></label>
           <label class="checkbox_label"><input type="checkbox" id="psb-auto"><span>每轮自动生成</span></label>
+          <label class="checkbox_label"><input type="checkbox" id="psb-skip-greeting"><span>开场白不生成</span></label>
         </div>
 
         <div class="psb-field">
@@ -934,6 +961,7 @@ function buildUI() {
   // 初值
   $('psb-enabled').checked = !!settings.enabled;
   $('psb-auto').checked = !!settings.auto;
+  $('psb-skip-greeting').checked = !!settings.skipGreetings;
   wrap.querySelectorAll('input[name="psb-mode"]').forEach((el) => { el.checked = el.value === settings.mode; });
   $('psb-apimode').value = settings.apiMode;
   // 连接配置：没选过或选的那条已被删掉时，默认落到第一个可用配置
@@ -962,6 +990,7 @@ function buildUI() {
   // 绑定
   $('psb-enabled').addEventListener('change', (e) => { settings.enabled = e.target.checked; saveSettings(); });
   $('psb-auto').addEventListener('change', (e) => { settings.auto = e.target.checked; saveSettings(); });
+  $('psb-skip-greeting').addEventListener('change', (e) => { settings.skipGreetings = e.target.checked; saveSettings(); });
   wrap.querySelectorAll('input[name="psb-mode"]').forEach((el) => el.addEventListener('change', () => {
     if (!el.checked) return;
     settings.mode = el.value;
