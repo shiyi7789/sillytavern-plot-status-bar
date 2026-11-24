@@ -6,7 +6,7 @@
   "js": "index.js",
   "css": "style.css",
   "author": "shiyi7789",
-  "version": "3.5.3",
+  "version": "3.5.4",
   "homePage": "https://github.com/shiyi7789/sillytavern-plot-status-bar",
   "auto_update": false,
   "minimum_client_version": "1.12.0",

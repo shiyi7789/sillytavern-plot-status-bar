@@ -100,6 +100,7 @@ const DEFAULTS = {
   floatCollapsed: false,
   floatPos: null,             // {x, y}；null = 默认右下角
   floatDock: null,            // {side:'left'|'right', y}：收起后的贴边位置
+  lastError: null,            // {ts, msg}：最近一次生成失败原因
 
   showModeBadge: true,
 };
@@ -750,15 +751,27 @@ function renderFloat(entry, animate = false) {
   if (!item) {
     const panel = document.createElement('div');
     panel.className = 'psb-panel';
-    const tip = charOpen
+    let tip = charOpen
       ? '还没有状态栏 —— 聊一句就会自动生成'
       : '未打开角色卡';
+    if (charOpen) {
+      const chat = getChat();
+      const withData = chat.filter((m) => m?.extra && m.extra.plotStatusBar).length;
+      const c2 = C() || {};
+      const chatId = c2.chatId || '(无)';
+      tip += `\n自检：扫描 ${chat.length} 条消息，带状态栏 ${withData} 条 · 聊天 ${chatId}`;
+    }
+    if (charOpen && settings.lastError) {
+      const when = new Date(settings.lastError.ts);
+      const hhmm = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
+      tip += `\n上次生成失败（${hhmm}）：${settings.lastError.msg}`;
+    }
     panel.innerHTML = `
       <div class="psb-head">
         <span class="psb-title">📋 状态栏</span>
         <span class="psb-spacer"></span>
       </div>
-      <div class="psb-empty">${esc(tip)}</div>
+      <div class="psb-empty" style="white-space:pre-wrap">${esc(tip)}</div>
     `;
     const head = panel.querySelector('.psb-head');
     head.insertBefore(collapseButton(null), head.firstChild);
@@ -1064,6 +1077,19 @@ async function callExtra(prompt) {
 /* 主流程                                                              */
 /* ------------------------------------------------------------------ */
 
+/** 记录最近一次失败原因，供面板显示 */
+function noteError(msg) {
+  settings.lastError = { ts: Date.now(), msg: String(msg || '未知错误').slice(0, 200) };
+  saveSettings();
+  console.warn(TAG, '失败：', settings.lastError.msg);
+}
+
+function clearError() {
+  if (!settings.lastError) return;
+  settings.lastError = null;
+  saveSettings();
+}
+
 function setPanelBusy(id, busy) {
   const el = document.querySelector(`#chat .mes[mesid="${id}"]`);
   if (!el) return;
@@ -1093,27 +1119,31 @@ async function generate(id, { force = false } = {}) {
   setPanelBusy(id, true);
   try {
     const raw = await callExtra(buildExtraPrompt(id));
+    console.log(TAG, '额外 API 原文（前 300 字）：', String(raw).slice(0, 300));
     let obj = extractJson(raw);
     if (!obj && settings.prefill) {
       // 模型顺着预填充往下写，返回里缺 JSON 开头
       obj = extractJson(PREFILL + String(raw).trim());
     }
     if (!obj) {
-      console.warn(TAG, '返回无法解析为 JSON：', String(raw).slice(0, 300));
-      return;
+      noteError('返回无法解析为 JSON（原文见控制台）');
+      return { ok: false, reason: '返回无法解析为 JSON' };
     }
     if (!looksLikeStatus(obj)) {
-      console.warn(TAG, '返回的 JSON 不像状态栏：', String(raw).slice(0, 300));
-      return;
+      noteError('返回的 JSON 不像状态栏（缺少 基础/身体 等字段）');
+      return { ok: false, reason: '返回的 JSON 不像状态栏' };
     }
     setStatus(id, obj, { source: 'extra' });
+    clearError();
     persistChat();
     if (settings.displayMode === 'float') settings.floatCollapsed = false;  // 有新状态就展开
     saveSettings();
     scheduleRender(id);
     applyInjection();
-    console.log(TAG, `第 ${id} 楼状态栏已生成`);
+    console.log(TAG, `第 ${id} 楼状态栏已生成（${JSON.stringify(obj).length} 字符）`);
+    return { ok: true, chars: JSON.stringify(obj).length };
   } catch (e) {
+    noteError(e?.message || String(e));
     console.error(TAG, '生成失败：', e?.message || e);
   } finally {
     setPanelBusy(id, false);
@@ -1546,8 +1576,9 @@ function buildUI() {
     const id = getChat().length - 1;
     if (id < 0) return toast('还没有消息');
     toast('生成中…');
-    await generate(id, { force: true });
-    toast('完成（详情看控制台）');
+    const r = await generate(id, { force: true });
+    if (r && r.ok) toast(`完成：${r.chars} 字符`);
+    else toast(`失败：${(r && r.reason) || settings.lastError?.msg || '未知'}`);
   });
 
   $('psb-preview').addEventListener('click', () => {
